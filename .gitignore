@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Datasets
+cifar-10-batches-py/
+coco_captioning/
+imagenet_val_25.npz
