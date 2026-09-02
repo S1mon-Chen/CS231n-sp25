@@ -215,17 +215,11 @@ class FullyConnectedNet(object):
         ############################################################################
         self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dims[0])
         self.params['b1'] = np.zeros(hidden_dims[0])
-        # self.params['gamma1'] = np.ones(hidden_dims[0])
-        # self.params['beta1'] = np.zeros(hidden_dims[0])
         for i in range(2, self.num_layers):
             self.params[f"W{i}"] = weight_scale * np.random.randn(hidden_dims[i - 2], hidden_dims[i - 1])
             self.params[f"b{i}"] = np.zeros(hidden_dims[i - 1])
-        #     self.params[f"gamma{i}"] = np.ones(hidden_dims[i - 1])
-        #     self.params[f"beta{i}"] = np.zeros(hidden_dims[i - 1])
         self.params[f"W{self.num_layers}"] = weight_scale * np.random.randn(hidden_dims[self.num_layers - 2], num_classes)
         self.params[f"b{self.num_layers}"] = np.zeros(num_classes)
-        # self.params[f"gamma{self.num_layers}"] = np.ones(num_classes)
-        # self.params[f"beta{self.num_layers}"] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
