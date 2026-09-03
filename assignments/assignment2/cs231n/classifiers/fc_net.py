@@ -161,25 +161,21 @@ class FullyConnectedNet(object):
         ############################################################################
         X = np.reshape(X, (X.shape[0], -1))
         out, cache = X, {}
-        if self.normalization == "batchnorm":
-            for i in range(1, self.num_layers):
-                Wi = self.params[f'W{i}']
-                bi = self.params[f'b{i}']
+        for i in range(1, self.num_layers):
+            Wi = self.params[f'W{i}']
+            bi = self.params[f'b{i}']
+            if self.normalization in ["batchnorm", "layernorm"]:
                 gammai = self.params[f'gamma{i}']
                 betai = self.params[f'beta{i}']
-                out, cache[i] = affine_bn_relu_forward(out, Wi, bi, gammai, betai, self.bn_params[i - 1])
-        elif self.normalization == "layernorm":
-            for i in range(1, self.num_layers):
-                Wi = self.params[f'W{i}']
-                bi = self.params[f'b{i}']
-                gammai = self.params[f'gamma{i}']
-                betai = self.params[f'beta{i}']
-                out, cache[i] = affine_ln_relu_forward(out, Wi, bi, gammai, betai, self.bn_params[i - 1])
-        else:
-            for i in range(1, self.num_layers):
-                Wi = self.params[f'W{i}']
-                bi = self.params[f'b{i}']
+                if self.normalization == "batchnorm":
+                    out, cache[i] = affine_bn_relu_forward(out, Wi, bi, gammai, betai, self.bn_params[i - 1])
+                elif self.normalization == "layernorm":
+                    out, cache[i] = affine_ln_relu_forward(out, Wi, bi, gammai, betai, self.bn_params[i - 1])
+            else:
                 out, cache[i] = affine_relu_forward(out, Wi, bi)
+            if self.use_dropout:
+                out, dropout_cache = dropout_forward(out, self.dropout_param)
+                cache[i] = (*cache[i], dropout_cache)
         Wn = self.params[f'W{self.num_layers}']
         bn = self.params[f'b{self.num_layers}']
         scores, cache[self.num_layers] = affine_forward(out, Wn, bn)
@@ -209,28 +205,22 @@ class FullyConnectedNet(object):
         dout, dWn, dbn = affine_backward(dscores, cache[self.num_layers])
         grads[f'W{self.num_layers}'] = dWn
         grads[f'b{self.num_layers}'] = dbn
-        if self.normalization == "batchnorm":
-            for i in range(self.num_layers - 1, 0, -1):
-                dout, dWi, dbi, dgammai, dbetai = affine_bn_relu_backward(dout, cache[i])
-                loss += 0.5 * self.reg * np.sum(self.params[f'W{i}'] ** 2)
-                grads[f'W{i}'] = dWi + self.reg * self.params[f'W{i}']
-                grads[f'b{i}'] = dbi
+        for i in range(self.num_layers - 1, 0, -1):
+            dWi, dbi, dgammai, dbetai = None, None, None, None
+            if self.use_dropout:
+                dout = dropout_backward(dout, cache[i][-1])
+            if self.normalization in ["batchnorm", "layernorm"]:
+                if self.normalization == "batchnorm":
+                    dout, dWi, dbi, dgammai, dbetai = affine_bn_relu_backward(dout, cache[i][:3])
+                elif self.normalization == "layernorm":
+                    dout, dWi, dbi, dgammai, dbetai = affine_ln_relu_backward(dout, cache[i][:3])
                 grads[f'gamma{i}'] = dgammai
                 grads[f'beta{i}'] = dbetai
-        elif self.normalization == "layernorm":
-            for i in range(self.num_layers - 1, 0, -1):
-                dout, dWi, dbi, dgammai, dbetai = affine_ln_relu_backward(dout, cache[i])
-                loss += 0.5 * self.reg * np.sum(self.params[f'W{i}'] ** 2)
-                grads[f'W{i}'] = dWi + self.reg * self.params[f'W{i}']
-                grads[f'b{i}'] = dbi
-                grads[f'gamma{i}'] = dgammai
-                grads[f'beta{i}'] = dbetai
-        else:
-            for i in range(self.num_layers - 1, 0, -1):
-                dout, dWi, dbi = affine_relu_backward(dout, cache[i])
-                loss += 0.5 * self.reg * np.sum(self.params[f'W{i}'] ** 2)
-                grads[f'W{i}'] = dWi + self.reg * self.params[f'W{i}']
-                grads[f'b{i}'] = dbi
+            else:
+                dout, dWi, dbi = affine_relu_backward(dout, cache[i][:2])
+            loss += 0.5 * self.reg * np.sum(self.params[f'W{i}'] ** 2)
+            grads[f'W{i}'] = dWi + self.reg * self.params[f'W{i}']
+            grads[f'b{i}'] = dbi
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
